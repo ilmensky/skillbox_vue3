@@ -202,7 +202,7 @@
                 В корзину
               </button>
               <base-modal v-model:open="isShowAddMessage">
-                  Товар добавлен в корзину
+                Товар добавлен в корзину
               </base-modal>
             </div>
             <div v-show="productAdded">
@@ -295,69 +295,138 @@
 <script>
 import axios from 'axios';
 import { API_BASE_URL } from '@/config';
-import gotoPage from '@/helpers/gotoPage';
 import numberFormat from '@/helpers/numberFormat';
 import ProductCounter from '@/components/ProductCounter.vue';
-import { mapActions } from 'vuex';
+import { useStore } from 'vuex';
 import BaseModal from '@/components/BaseModal.vue';
+import { defineComponent, ref, computed } from 'vue';
+import { useRoute } from 'vue-router';
 
-export default {
-  name: 'ProductPage',
-  components: { BaseModal, ProductCounter },
-  beforeRouteUpdate() {
-    this.loadProduct();
+export default defineComponent({
+  components: {
+    BaseModal,
+    ProductCounter,
   },
-  data() {
-    return {
-      productAmount: 1,
-      productData: null,
-      productLoading: false,
-      productLoadingFailed: false,
-      productAdded: false,
-      productAddSending: false,
-      isShowAddMessage: false,
-    };
-  },
-  computed: {
-    product() {
-      return { ...this.productData, image: this.productData.image.file.url };
-    },
-    category() {
-      return this.product.category;
-    },
-    productPrice() {
-      return numberFormat(this.product.price);
-    },
-  },
-  created() {
-    this.loadProduct();
-  },
-  methods: {
-    ...mapActions(['addProductToCart']),
-    gotoPage,
-    addToCart() {
-      this.productAddSending = true;
-      this.productAdded = false;
-      this.addProductToCart({
-        productId: this.product.id,
-        quantity: this.productAmount,
+  setup() {
+    const $route = useRoute();
+    const $store = useStore();
+
+    const productAmount = ref(1);
+    const productData = ref(null);
+
+    const productLoading = ref(false);
+    const productLoadingFailed = ref(false);
+    const product = computed(() => (
+      { ...productData.value, image: productData.value.image.file.url }
+    ));
+    const category = computed(() => (
+      productData.value.category
+    ));
+    const productPrice = computed(() => (
+      numberFormat(product.value.price)
+    ));
+
+    const productAdded = ref(false);
+    const productAddSending = ref(false);
+    const isShowAddMessage = ref(false);
+    const addToCart = () => {
+      productAddSending.value = true;
+      productAdded.value = false;
+      $store.dispatch('addProductToCart', {
+        productId: product.value.id,
+        quantity: productAmount.value,
       })
         .then(() => {
-          this.isShowAddMessage = true;
-          this.productAddSending = false;
-          this.productAdded = true;
+          isShowAddMessage.value = true;
+          productAddSending.value = false;
+          productAdded.value = true;
         });
-    },
-    loadProduct() {
-      this.productLoading = true;
-      this.productLoadingFailed = false;
-      axios.get(`${API_BASE_URL}/api/products/${this.$route.params.id}`)
-        .then((response) => { this.productData = response.data; })
-        .catch(() => { this.productLoadingFailed = true; })
-        .finally(() => { this.productLoading = false; });
-    },
+    };
+    const loadProduct = () => {
+      productLoading.value = true;
+      productLoadingFailed.value = false;
+      axios.get(`${API_BASE_URL}/api/products/${$route.params.id}`)
+        .then((response) => { productData.value = response.data; })
+        .catch(() => { productLoadingFailed.value = true; })
+        .finally(() => { productLoading.value = false; });
+    };
+
+    loadProduct();
+
+    return {
+      productAmount,
+      productData,
+      productLoading,
+      productLoadingFailed,
+      productAdded,
+      productAddSending,
+      isShowAddMessage,
+      product,
+      category,
+      productPrice,
+      addToCart,
+    };
   },
-};
+});
+
+// export default {
+//   name: 'ProductPage',
+//   components: { BaseModal, ProductCounter },
+//   beforeRouteUpdate() {
+//     this.loadProduct();
+//   },
+//   data() {
+//     return {
+//       productAmount: 1,
+//       productData: null,
+//       productLoading: false,
+//       productLoadingFailed: false,
+//       productAdded: false,
+//       productAddSending: false,
+//       isShowAddMessage: false,
+//     };
+//   },
+//   computed: {
+//     product() {
+//       return { ...this.productData, image: this.productData.image.file.url };
+//     },
+//     category() {
+//       return this.product.category;
+//     },
+//     productPrice() {
+//       return numberFormat(this.product.price);
+//     },
+//   },
+//   created() {
+//     this.loadProduct();
+//   },
+//   methods: {
+//     ...mapActions(['addProductToCart']),
+//     gotoPage,
+//     addToCart() {
+//       this.productAddSending = true;
+//       this.productAdded = false;
+//       this.addProductToCart({
+//         productId: this.product.id,
+//         quantity: this.productAmount,
+//       })
+//         .then(() => {
+//           this.isShowAddMessage = true;
+//           this.productAddSending = false;
+//           this.productAdded = true;
+//         });
+//     },
+//     loadProduct() {
+//       this.productLoading = true;
+//       this.productLoadingFailed = false;
+//       axios.get(`${API_BASE_URL}/api/products/${this.$route.params.id}`)
+//         .then((response) => { this.productData = response.data; })
+//         .catch(() => { this.productLoadingFailed = true; })
+//         .finally(() => { this.productLoading = false; });
+//     },
+//   },
+// };
+
 </script>
 
 <style scoped>
