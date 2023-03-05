@@ -1,12 +1,12 @@
 <template>
   <main
-    v-if="productLoading"
+    v-if="productStatus.isLoading"
     class="content container"
   >
     Загрузка товара...
   </main>
   <main
-    v-else-if="productLoadingFailed"
+    v-else-if="productStatus.isFailed"
     class="content container"
   >
     Не удальсь получить товар.
@@ -63,10 +63,10 @@
             class="form"
             action="#"
             method="POST"
-            @submit.prevent="addToCart"
+            @submit.prevent="addToCart(productAmount)"
           >
             <b class="item__price">
-              {{ productPrice }} ₽
+              {{ product.pricePretty }} ₽
             </b>
 
             <fieldset class="form__block">
@@ -197,18 +197,18 @@
               <button
                 class="button button--primery"
                 type="submit"
-                :disabled="productAddSending"
+                :disabled="addToCartStatus.productAddSending"
               >
                 В корзину
               </button>
-              <base-modal v-model:open="isShowAddMessage">
+              <base-modal v-model:open="addToCartStatus.isShowAddMessage">
                 Товар добавлен в корзину
               </base-modal>
             </div>
-            <div v-show="productAdded">
+            <div v-show="addToCartStatus.productAdded">
               Товар добавлен в корзину
             </div>
-            <div v-show="productAddSending">
+            <div v-show="addToCartStatus.productAddSending">
               Добавление товара...
             </div>
           </form>
@@ -293,14 +293,11 @@
 </template>
 
 <script>
-import axios from 'axios';
-import { API_BASE_URL } from '@/config';
-import numberFormat from '@/helpers/numberFormat';
 import ProductCounter from '@/components/ProductCounter.vue';
-import { useStore } from 'vuex';
 import BaseModal from '@/components/BaseModal.vue';
-import { defineComponent, ref, computed } from 'vue';
+import { defineComponent, ref } from 'vue';
 import { useRoute } from 'vue-router';
+import useProduct from '@/hooks/useProduct';
 
 export default defineComponent({
   components: {
@@ -309,123 +306,31 @@ export default defineComponent({
   },
   setup() {
     const $route = useRoute();
-    const $store = useStore();
+
+    const {
+      product,
+      category,
+      fetchProduct,
+      status: productStatus,
+      addToCart,
+      addToCartStatus,
+    } = useProduct();
 
     const productAmount = ref(1);
-    const productData = ref(null);
 
-    const productLoading = ref(false);
-    const productLoadingFailed = ref(false);
-    const product = computed(() => (
-      { ...productData.value, image: productData.value.image.file.url }
-    ));
-    const category = computed(() => (
-      productData.value.category
-    ));
-    const productPrice = computed(() => (
-      numberFormat(product.value.price)
-    ));
-
-    const productAdded = ref(false);
-    const productAddSending = ref(false);
-    const isShowAddMessage = ref(false);
-    const addToCart = () => {
-      productAddSending.value = true;
-      productAdded.value = false;
-      $store.dispatch('addProductToCart', {
-        productId: product.value.id,
-        quantity: productAmount.value,
-      })
-        .then(() => {
-          isShowAddMessage.value = true;
-          productAddSending.value = false;
-          productAdded.value = true;
-        });
-    };
-    const loadProduct = () => {
-      productLoading.value = true;
-      productLoadingFailed.value = false;
-      axios.get(`${API_BASE_URL}/api/products/${$route.params.id}`)
-        .then((response) => { productData.value = response.data; })
-        .catch(() => { productLoadingFailed.value = true; })
-        .finally(() => { productLoading.value = false; });
-    };
-
-    loadProduct();
+    fetchProduct($route.params.id);
 
     return {
       productAmount,
-      productData,
-      productLoading,
-      productLoadingFailed,
-      productAdded,
-      productAddSending,
-      isShowAddMessage,
+      productData: product,
+      productStatus,
+      addToCartStatus,
       product,
       category,
-      productPrice,
       addToCart,
     };
   },
 });
-
-// export default {
-//   name: 'ProductPage',
-//   components: { BaseModal, ProductCounter },
-//   beforeRouteUpdate() {
-//     this.loadProduct();
-//   },
-//   data() {
-//     return {
-//       productAmount: 1,
-//       productData: null,
-//       productLoading: false,
-//       productLoadingFailed: false,
-//       productAdded: false,
-//       productAddSending: false,
-//       isShowAddMessage: false,
-//     };
-//   },
-//   computed: {
-//     product() {
-//       return { ...this.productData, image: this.productData.image.file.url };
-//     },
-//     category() {
-//       return this.product.category;
-//     },
-//     productPrice() {
-//       return numberFormat(this.product.price);
-//     },
-//   },
-//   created() {
-//     this.loadProduct();
-//   },
-//   methods: {
-//     ...mapActions(['addProductToCart']),
-//     gotoPage,
-//     addToCart() {
-//       this.productAddSending = true;
-//       this.productAdded = false;
-//       this.addProductToCart({
-//         productId: this.product.id,
-//         quantity: this.productAmount,
-//       })
-//         .then(() => {
-//           this.isShowAddMessage = true;
-//           this.productAddSending = false;
-//           this.productAdded = true;
-//         });
-//     },
-//     loadProduct() {
-//       this.productLoading = true;
-//       this.productLoadingFailed = false;
-//       axios.get(`${API_BASE_URL}/api/products/${this.$route.params.id}`)
-//         .then((response) => { this.productData = response.data; })
-//         .catch(() => { this.productLoadingFailed = true; })
-//         .finally(() => { this.productLoading = false; });
-//     },
-//   },
-// };
 
 </script>
 

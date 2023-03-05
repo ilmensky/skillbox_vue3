@@ -1,12 +1,12 @@
 <template>
   <main
-    v-if="productLoading"
+    v-if="productStatus.isLoading"
     class="content container"
   >
     Загрузка товара...
   </main>
   <main
-    v-else-if="productLoadingFailed"
+    v-else-if="productStatus.isFailed"
     class="content container"
   >
     Не удальсь получить товар.
@@ -15,32 +15,6 @@
     v-else
     class="content container"
   >
-    <div class="content__top">
-      <ul class="breadcrumbs">
-        <li class="breadcrumbs__item">
-          <router-link
-            class="breadcrumbs__link"
-            :to="{name: 'main'}"
-          >
-            Каталог
-          </router-link>
-        </li>
-        <li class="breadcrumbs__item">
-          <router-link
-            class="breadcrumbs__link"
-            :to="{name: 'main'}"
-          >
-            {{ category.title }}
-          </router-link>
-        </li>
-        <li class="breadcrumbs__item">
-          <a class="breadcrumbs__link">
-            {{ product.title }}
-          </a>
-        </li>
-      </ul>
-    </div>
-
     <section class="item">
       <div class="item__pics pics">
         <div class="pics__wrapper">
@@ -63,10 +37,10 @@
             class="form"
             action="#"
             method="POST"
-            @submit.prevent="addToCart"
+            @submit.prevent="addToCart(productAmount)"
           >
             <b class="item__price">
-              {{ productPrice }} ₽
+              {{ product.pricePretty }} ₽
             </b>
 
             <fieldset class="form__block">
@@ -197,18 +171,18 @@
               <button
                 class="button button--primery"
                 type="submit"
-                :disabled="productAddSending"
+                :disabled="addToCartStatus.productAddSending"
               >
                 В корзину
               </button>
-              <base-modal v-model:open="isShowAddMessage">
+              <base-modal v-model:open="addToCartStatus.isShowAddMessage">
                 Товар добавлен в корзину
               </base-modal>
             </div>
-            <div v-show="productAdded">
+            <div v-show="addToCartStatus.productAdded">
               Товар добавлен в корзину
             </div>
-            <div v-show="productAddSending">
+            <div v-show="addToCartStatus.productAddSending">
               Добавление товара...
             </div>
           </form>
@@ -293,19 +267,15 @@
 </template>
 
 <script>
-import axios from 'axios';
-import { API_BASE_URL } from '@/config';
-import gotoPage from '@/helpers/gotoPage';
-import numberFormat from '@/helpers/numberFormat';
 import ProductCounter from '@/components/ProductCounter.vue';
-import { mapActions } from 'vuex';
 import BaseModal from '@/components/BaseModal.vue';
+import { defineComponent, ref } from 'vue';
+import useProduct from '@/hooks/useProduct';
 
-export default {
-  name: 'ProductQuickView',
-  components: { BaseModal, ProductCounter },
-  beforeRouteUpdate() {
-    this.loadProduct();
+export default defineComponent({
+  components: {
+    BaseModal,
+    ProductCounter,
   },
   props: {
     productId: {
@@ -313,57 +283,105 @@ export default {
       required: true,
     },
   },
-  data() {
+  setup(props) {
+    const {
+      product,
+      category,
+      fetchProduct,
+      status: productStatus,
+      addToCart,
+      addToCartStatus,
+    } = useProduct();
+
+    const productAmount = ref(1);
+
+    fetchProduct(props.productId);
+
     return {
-      productAmount: 1,
-      productData: null,
-      productLoading: false,
-      productLoadingFailed: false,
-      productAdded: false,
-      productAddSending: false,
-      isShowAddMessage: false,
+      productAmount,
+      productData: product,
+      productStatus,
+      addToCartStatus,
+      product,
+      category,
+      addToCart,
     };
   },
-  computed: {
-    product() {
-      return { ...this.productData, image: this.productData.image.file.url };
-    },
-    category() {
-      return this.product.category;
-    },
-    productPrice() {
-      return numberFormat(this.product.price);
-    },
-  },
-  created() {
-    this.loadProduct();
-  },
-  methods: {
-    ...mapActions(['addProductToCart']),
-    gotoPage,
-    addToCart() {
-      this.productAddSending = true;
-      this.productAdded = false;
-      this.addProductToCart({
-        productId: this.product.id,
-        quantity: this.productAmount,
-      })
-        .then(() => {
-          this.isShowAddMessage = true;
-          this.productAddSending = false;
-          this.productAdded = true;
-        });
-    },
-    loadProduct() {
-      this.productLoading = true;
-      this.productLoadingFailed = false;
-      axios.get(`${API_BASE_URL}/api/products/${this.productId}`)
-        .then((response) => { this.productData = response.data; })
-        .catch(() => { this.productLoadingFailed = true; })
-        .finally(() => { this.productLoading = false; });
-    },
-  },
-};
+});
+
+
+
+// import axios from 'axios';
+// import { API_BASE_URL } from '@/config';
+// import gotoPage from '@/helpers/gotoPage';
+// import numberFormat from '@/helpers/numberFormat';
+// import ProductCounter from '@/components/ProductCounter.vue';
+// import { mapActions } from 'vuex';
+// import BaseModal from '@/components/BaseModal.vue';
+//
+// export default {
+//   name: 'ProductQuickView',
+//   components: { BaseModal, ProductCounter },
+//   beforeRouteUpdate() {
+//     this.loadProduct();
+//   },
+//   props: {
+//     productId: {
+//       type: [Number, String],
+//       required: true,
+//     },
+//   },
+//   data() {
+//     return {
+//       productAmount: 1,
+//       productData: null,
+//       productLoading: false,
+//       productLoadingFailed: false,
+//       productAdded: false,
+//       productAddSending: false,
+//       isShowAddMessage: false,
+//     };
+//   },
+//   computed: {
+//     product() {
+//       return { ...this.productData, image: this.productData.image.file.url };
+//     },
+//     category() {
+//       return this.product.category;
+//     },
+//     productPrice() {
+//       return numberFormat(this.product.price);
+//     },
+//   },
+//   created() {
+//     this.loadProduct();
+//   },
+//   methods: {
+//     ...mapActions(['addProductToCart']),
+//     gotoPage,
+//     addToCart() {
+//       this.productAddSending = true;
+//       this.productAdded = false;
+//       this.addProductToCart({
+//         productId: this.product.id,
+//         quantity: this.productAmount,
+//       })
+//         .then(() => {
+//           this.isShowAddMessage = true;
+//           this.productAddSending = false;
+//           this.productAdded = true;
+//         });
+//     },
+//     loadProduct() {
+//       this.productLoading = true;
+//       this.productLoadingFailed = false;
+//       axios.get(`${API_BASE_URL}/api/products/${this.productId}`)
+//         .then((response) => { this.productData = response.data; })
+//         .catch(() => { this.productLoadingFailed = true; })
+//         .finally(() => { this.productLoading = false; });
+//     },
+//   },
+// };
 </script>
 
 <style scoped>
